@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pomodoro Timer</title>
+    <style>
+        body { 
+            font-family: 'Helvetica Neue', Arial, sans-serif; 
+            background: #f0f2f5; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            height: 100vh; 
+            margin: 0; 
+            transition: background 0.5s ease;
+        }
+        /* modecolor */
+        body.work-mode { background: #ffebeb; }
+        body.break-mode { background: #e8f5e9; }
+
+        .container { 
+            text-align: center; 
+            background: white; 
+            padding: 30px; 
+            border-radius: 20px; 
+            box-shadow: 0 8px 25px rgba(0,0,0,0.08); 
+            width: 340px;
+        }
+
+        /* mode */
+        .status-badge {
+            display: inline-block;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 1.1rem;
+            margin-bottom: 20px;
+            transition: all 0.3s;
+        }
+        .work-mode .status-badge { background: #ff6b6b; color: white; }
+        .break-mode .status-badge { background: #4caf50; color: white; }
+
+        /* settings */
+        .settings {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            font-size: 0.9rem;
+            color: #555;
+        }
+        .setting-group {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 8px 0;
+        }
+        .setting-group input {
+            width: 50px;
+            font-size: 1rem;
+            padding: 4px;
+            text-align: center;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+        }
+
+        /* timer */
+        .timer { 
+            font-size: 4.5rem; 
+            font-weight: bold; 
+            margin-bottom: 25px; 
+            font-variant-numeric: tabular-nums; /* locknumberui */
+        }
+        .work-mode .timer { color: #ff6b6b; }
+        .break-mode .timer { color: #4caf50; }
+
+        /* button */
+        .controls button { 
+            font-size: 1rem; 
+            padding: 12px 24px; 
+            margin: 0 5px; 
+            border: none; 
+            border-radius: 8px; 
+            cursor: pointer; 
+            color: white; 
+            font-weight: bold;
+            transition: background 0.2s, transform 0.1s;
+        }
+        .controls button:active { transform: scale(0.96); }
+        
+        #start { background: #333; }
+        #pause { background: #999; }
+        #reset { background: #ccc; color: #333; }
+    </style>
+</head>
+<body class="work-mode">
+    <div class="container">
+        <!-- mode -->
+        <div class="status-badge" id="status-text">💻 study</div>
+
+        <!-- timerui -->
+        <div class="timer">
+            <span id="minutes">25</span>:<span id="seconds">00</span>
+        </div>
+
+        <!-- button2 -->
+        <div class="controls">
+            <button id="start">Start</button>
+            <button id="pause">Pause</button>
+            <button id="reset">Reset</button>
+        </div>
+
+        <br><hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;"><br>
+
+        <!-- pomodorosettings -->
+        <div class="settings">
+            <div class="setting-group">
+                <span>study:</span>
+                <div>
+                    <input type="number" id="work-min" value="25" min="0"> min
+                    <input type="number" id="work-sec" value="0" min="0" max="59"> sec
+                </div>
+            </div>
+            <div class="setting-group">
+                <span>breaktime:</span>
+                <div>
+                    <input type="number" id="break-min" value="5" min="0"> min
+                    <input type="number" id="break-sec" value="0" min="0" max="59"> sec
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let timerId = null;
+        let timeLeft = 25 * 60; 
+        let currentMode = 'work'; // 'work'or'break')
+
+        // HTML
+        const minutesDisplay = document.getElementById('minutes');
+        const secondsDisplay = document.getElementById('seconds');
+        const statusText = document.getElementById('status-text');
+        
+        const workMinInput = document.getElementById('work-min');
+        const workSecInput = document.getElementById('work-sec');
+        const breakMinInput = document.getElementById('break-min');
+        const breakSecInput = document.getElementById('break-sec');
+
+        // reflesh
+        function updateDisplay() {
+            const displayMin = Math.floor(timeLeft / 60);
+            const displaySec = timeLeft % 60;
+            minutesDisplay.textContent = displayMin.toString().padStart(2, '0');
+            secondsDisplay.textContent = displaySec.toString().padStart(2, '0');
+        }
+
+        // applytimersettings 
+        function setTimerFromInput() {
+            if (currentMode === 'work') {
+                const min = parseInt(workMinInput.value) || 0;
+                const sec = parseInt(workSecInput.value) || 0;
+                timeLeft = (min * 60) + sec;
+                statusText.textContent = "worktime";
+                document.body.className = "work-mode";
+            } else {
+                const min = parseInt(breakMinInput.value) || 0;
+                const sec = parseInt(breakSecInput.value) || 0;
+                timeLeft = (min * 60) + sec;
+                statusText.textContent = "breaktime";
+                document.body.className = "break-mode";
+            }
+            updateDisplay();
+        }
+
+        // realtime
+        [workMinInput, workSecInput, breakMinInput, breakSecInput].forEach(input => {
+            input.addEventListener('input', () => {
+                if (timerId === null) setTimerFromInput();
+            });
+        });
+
+        // Start
+        document.getElementById('start').addEventListener('click', () => {
+            if (timerId !== null) return;
+
+            if (timeLeft <= 0) setTimerFromInput();
+            if (timeLeft <= 0) {
+                alert('set the time');
+                return;
+            }
+
+            timerId = setInterval(() => {
+                if (timeLeft > 0) {
+                    timeLeft--;
+                    updateDisplay();
+                } else {
+                    // auto
+                    clearInterval(timerId);
+                    timerId = null;
+
+                    if (currentMode === 'work') {
+                        alert('break time!!');
+                        currentMode = 'break';
+                    } else {
+                        alert('study(work) time');
+                        currentMode = 'work';
+                    }
+                    
+                    // set the next mode and start the timer
+                    setTimerFromInput();
+                    document.getElementById('start').click(); 
+                }
+            }, 1000);
+        });
+
+        // Pause
+        document.getElementById('pause').addEventListener('click', () => {
+            clearInterval(timerId);
+            timerId = null;
+        });
+
+        // Reset
+        document.getElementById('reset').addEventListener('click', () => {
+            clearInterval(timerId);
+            timerId = null;
+            currentMode = 'work'; // reset to first
+            setTimerFromInput();
+        });
+
+        setTimerFromInput();
+    </script>
+</body>
+</html>
